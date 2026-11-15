@@ -1,20 +1,18 @@
-import { motion } from 'framer-motion';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Lobby from './pages/Lobby';
 
 export default function App() {
   return (
-    <main className="grid h-full place-items-center p-6">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="rounded-2xl border border-line bg-panel p-8 text-center"
-      >
-        <h1 className="font-display text-3xl font-semibold">Collab Meet</h1>
-        <p className="mt-2 text-muted">Tailwind and animations are working.</p>
-        <button className="mt-6 rounded-xl bg-accent px-5 py-2.5 font-medium text-accent-ink transition hover:brightness-110 active:scale-95">
-          Looks good
-        </button>
-      </motion.div>
-    </main>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<Lobby />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
