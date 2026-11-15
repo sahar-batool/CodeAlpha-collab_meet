@@ -6,11 +6,12 @@ import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import { apiLimiter } from './middleware/rateLimiters.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import roomRoutes from './routes/rooms.js';
 
 export function createApp() {
   const app = express();
 
-  // Railway sits behind a proxy; needed for correct client IPs in rate limiting.
+  
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
@@ -27,11 +28,12 @@ export function createApp() {
   app.use(express.json({ limit: '10kb' }));
   app.use(mongoSanitize());
 
-  // Used by Railway's health check. Not rate limited.
+  
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   app.use('/api', apiLimiter);
   app.use('/api/auth', authRoutes);
+  app.use('/api/rooms', roomRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { User } from '../models/User.js';
 import { verifyToken } from '../utils/token.js';
 import { applySocketRateLimit } from './throttle.js';
+import { registerRoomHandlers } from './rooms.js';
 
 export function initSockets(httpServer) {
   const io = new Server(httpServer, {
@@ -27,6 +28,7 @@ export function initSockets(httpServer) {
 
   io.on('connection', (socket) => {
     applySocketRateLimit(socket);
+    registerRoomHandlers(io, socket);
 
     // Simple round-trip check used to test the connection from the client.
     socket.on('ping:check', (ack) => {

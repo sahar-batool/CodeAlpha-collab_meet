@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import AuthLayout from '../components/AuthLayout';
@@ -8,11 +8,12 @@ import Button from '../components/Button';
 
 export default function Login() {
   const { user, login } = useAuth();
+  const from = useLocation().state?.from?.pathname || '/';
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={from} replace />;
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 

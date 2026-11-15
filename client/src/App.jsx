@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Lobby from './pages/Lobby';
+import Room from './pages/Room';
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Lobby />} />
+        <Route path="/room/:code" element={<Room />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
