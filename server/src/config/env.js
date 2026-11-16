@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'path';
 
 const required = ['MONGO_URI', 'JWT_SECRET'];
 const missing = required.filter((k) => !process.env[k]);
@@ -12,6 +13,7 @@ if (process.env.JWT_SECRET.length < 32) {
 }
 
 export const env = {
+  uploadDir: path.resolve(process.env.UPLOAD_DIR || 'uploads'),
   port: Number(process.env.PORT) || 5000,
   isProd: process.env.NODE_ENV === 'production',
   mongoUri: process.env.MONGO_URI,

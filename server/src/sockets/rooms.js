@@ -1,10 +1,24 @@
 import { Room } from '../models/Room.js';
+import crypto from 'crypto';
+import { File } from '../models/File.js';
 
 const MAX_PARTICIPANTS = 6; // peer-to-peer mesh gets heavy beyond this
 const CODE_RE = /^[a-z0-9]{3}-[a-z0-9]{4}-[a-z0-9]{3}$/;
 
 // Who is in each room right now: code -> Map(socketId -> { id, userId, name })
 const rooms = new Map();
+// Recent chat per room, kept only while someone is in the room.
+const history = new Map();
+const MAX_HISTORY = 100;
+const MAX_CHAT_LENGTH = 1000;
+
+// Used by the file routes to confirm someone is really in a meeting.
+export function isUserInRoom(code, userId) {
+  const members = rooms.get(code);
+  if (!members) return false;
+  for (const m of members.values()) if (m.userId === userId) return true;
+  return false;
+}
 
 export function registerRoomHandlers(io, socket) {
   let seq = 0; // detects a leave that happened while a join was still in progress
@@ -16,8 +30,11 @@ export function registerRoomHandlers(io, socket) {
     socket.leave(code);
     const members = rooms.get(code);
     if (members) {
-      members.delete(socket.id);
-      if (members.size === 0) rooms.delete(code);
+        members.delete(socket.id);
+      if (members.size === 0) {
+        rooms.delete(code);
+        history.delete(code);
+      }
     }
     socket.data.roomCode = null;
     socket.to(code).emit('room:peer-left', { id: socket.id });
@@ -33,7 +50,10 @@ export function registerRoomHandlers(io, socket) {
       leave(); // moving from another room
       const mySeq = seq;
 
-      const room = await Room.findOne({ code }).select('name');
+        const [room, fileDocs] = await Promise.all([
+        Room.findOne({ code }).select('name'),
+        File.find({ room: code }).sort({ createdAt: -1 }).limit(50),
+      ]);
       if (!room) return reply({ error: 'Room not found' });
       if (mySeq !== seq || socket.disconnected) return reply({ error: 'Join cancelled' });
 
@@ -58,7 +78,14 @@ export function registerRoomHandlers(io, socket) {
       socket.data.roomCode = code;
 
       socket.to(code).emit('room:peer-joined', { id: socket.id, name: socket.user.name, micOn: mic, camOn: cam });
-      reply({ ok: true, room: { code, name: room.name }, selfId: socket.id, peers });
+            reply({
+        ok: true,
+        room: { code, name: room.name },
+        selfId: socket.id,
+        peers,
+        chat: history.get(code) || [],
+        files: fileDocs.map((f) => f.toPublic()),
+      });
     } catch (err) {
       console.error(err);
       reply({ error: 'Could not join the room' });

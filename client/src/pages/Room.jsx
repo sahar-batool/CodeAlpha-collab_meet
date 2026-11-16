@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Copy, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRoom } from '../hooks/useRoom';
 import VideoTile from '../components/VideoTile';
+import SidePanel from '../components/SidePanel';
 import Controls from '../components/Controls';
 import Button from '../components/Button';
 
@@ -19,8 +20,39 @@ export default function Room() {
   const { code } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { status, error, roomName, localStream, peers, micOn, camOn, toggleMic, toggleCam } = useRoom(code);
+  const {
+    status, error, roomName, localStream, peers, micOn, camOn, toggleMic, toggleCam,
+    screenStream, shareError, startShare, stopShare,
+    selfId, messages, files, sendMessage,
+  } = useRoom(code);
   const [copied, setCopied] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const lastCount = useRef(null);
+
+  // Count new chat messages and files that arrive while the panel is closed.
+  useEffect(() => {
+    if (status !== 'joined') {
+      lastCount.current = null;
+      return;
+    }
+    const total = messages.length + files.length;
+    if (lastCount.current !== null && !panelOpen && total > lastCount.current) {
+      setUnread((n) => n + total - lastCount.current);
+    }
+    lastCount.current = total;
+  }, [status, messages.length, files.length, panelOpen]);
+
+  const togglePanel = () => {
+    if (!panelOpen) setUnread(0);
+    setPanelOpen(!panelOpen);
+  };
+
+  const canShare = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia;
+  const sharing = !!screenStream;
+  const peerList = Object.entries(peers);
+  const remoteSharer = peerList.find(([, p]) => p.screenId);
+  const stage = sharing || !!remoteSharer;
 
   const leave = () => navigate('/');
 
@@ -46,14 +78,28 @@ export default function Room() {
     );
   }
 
-  const peerList = Object.entries(peers);
+  const tiles = (
+    <AnimatePresence>
+      <VideoTile key="me" stream={localStream} name={`${user.name} (You)`} muted mirrored camOff={!camOn} micOn={micOn} />
+      {peerList.map(([id, p]) => (
+        <VideoTile
+          key={id}
+          stream={p.stream}
+          name={p.name}
+          camOff={!p.camOn}
+          micOn={p.micOn}
+          connection={p.connection}
+        />
+      ))}
+    </AnimatePresence>
+  );
 
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="min-w-0">
           <h1 className="truncate font-display font-semibold">{roomName || 'Joining…'}</h1>
-                    <p className="text-sm text-muted">{code} · {peerList.length + 1} in call</p>
+          <p className="text-sm text-muted">{code} · {peerList.length + 1} in call</p>
         </div>
         <Button variant="ghost" onClick={copyLink} className="flex items-center gap-2 text-sm">
           {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -61,29 +107,66 @@ export default function Room() {
         </Button>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-4">
-        <div className={`grid w-full gap-4 ${gridFor(peerList.length + 1)}`}>
-          <AnimatePresence>
-           
-              <VideoTile key="me" stream={localStream} name={`${user.name} (You)`} muted mirrored camOff={!camOn} micOn={micOn} />
-            {peerList.map(([id, p]) => (
-              <VideoTile
-                key={id}
-                stream={p.stream}
-                name={p.name}
-                camOff={!p.camOn}
-                micOn={p.micOn}
-                connection={p.connection}
-              />
-            ))}
-          </AnimatePresence>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {stage ? (
+            <main className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
+              <section className="min-h-0 flex-1">
+                <ScreenStage
+                  isLocal={sharing}
+                  stream={remoteSharer?.[1].screenStream}
+                  name={remoteSharer?.[1].name}
+                  onStop={stopShare}
+                />
+              </section>
+              <div className="grid shrink-0 grid-cols-3 gap-3 lg:w-60 lg:grid-cols-1 lg:content-start lg:overflow-y-auto">
+                {tiles}
+              </div>
+            </main>
+          ) : (
+            <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-4">
+              <div className={`grid w-full gap-4 ${gridFor(peerList.length + 1)}`}>{tiles}</div>
+              {status === 'joined' && peerList.length === 0 && (
+                <p className="text-muted">Waiting for others. Share the invite link to bring people in.</p>
+              )}
+            </main>
+          )}
         </div>
-        {status === 'joined' && peerList.length === 0 && (
-          <p className="text-muted">Waiting for others. Share the invite link to bring people in.</p>
-        )}
-      </main>
 
-      <Controls micOn={micOn} camOn={camOn} onToggleMic={toggleMic} onToggleCam={toggleCam} onLeave={leave} />
+        <AnimatePresence>
+          {panelOpen && (
+            <SidePanel
+              key="panel"
+              code={code}
+              selfId={selfId}
+              messages={messages}
+              files={files}
+              onSend={sendMessage}
+              onClose={togglePanel}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+
+      {shareError && (
+        <div role="alert" className="pointer-events-none fixed inset-x-0 bottom-24 flex justify-center px-4">
+          <p className="rounded-xl border border-line bg-raised px-4 py-2 text-sm text-danger shadow-lg">{shareError}</p>
+        </div>
+      )}
+
+      <Controls
+        micOn={micOn}
+        camOn={camOn}
+        sharing={sharing}
+        canShare={canShare}
+        panelOpen={panelOpen}
+        unread={unread}
+        onToggleMic={toggleMic}
+        onToggleCam={toggleCam}
+        onToggleShare={sharing ? stopShare : startShare}
+        onTogglePanel={togglePanel}
+        onLeave={leave}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ async function main() {
   const app = createApp();
   const server = http.createServer(app);
   const io = initSockets(server);
+    app.set('io', io);
 
   server.listen(env.port, () => console.log(`Server listening on port ${env.port}`));
 

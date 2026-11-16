@@ -19,12 +19,19 @@ export const authLimiter = rateLimit({
   message: { message: 'Too many attempts. Please wait 15 minutes and try again.' },
 });
 
-
-
 // Creating rooms writes to the database, so keep it modest per IP.
 export const roomCreateLimiter = rateLimit({
   ...base,
   windowMs: 60 * 60 * 1000,
   limit: 30,
   message: { message: 'You have created too many rooms. Try again later.' },
+});
+
+// Per logged-in user, not per IP: uploads cost disk space and bandwidth.
+export const fileUploadLimiter = rateLimit({
+  ...base,
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  keyGenerator: (req) => req.user.id,
+  message: { message: 'You are uploading too quickly. Please wait a few minutes.' },
 });

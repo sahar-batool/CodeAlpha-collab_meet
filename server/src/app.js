@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import { apiLimiter } from './middleware/rateLimiters.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import roomRoutes from './routes/rooms.js';
+import fileRoutes from './routes/files.js';
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,7 @@ export function createApp() {
   app.use('/api', apiLimiter);
   app.use('/api/auth', authRoutes);
   app.use('/api/rooms', roomRoutes);
+  app.use('/api/files', fileRoutes);
 
   app.use(notFound);
   app.use(errorHandler);
