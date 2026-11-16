@@ -16,7 +16,8 @@ export function useRoom(code) {
   const [error, setError] = useState('');
   const [roomName, setRoomName] = useState('');
   const [localStream, setLocalStream] = useState(null);
-  const [peers, setPeers] = useState({}); // socketId -> { name, stream }
+  // socketId -> { name, stream, micOn, camOn, connection }
+  const [peers, setPeers] = useState({});
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const localRef = useRef(null);
@@ -34,7 +35,7 @@ export function useRoom(code) {
       localRef.current?.getTracks().forEach((t) => t.stop());
     };
 
-    const createPeer = (id, name, initiator) => {
+    const createPeer = (id, info, initiator) => {
       const pc = new RTCPeerConnection({ iceServers: getIceServers() });
       pcs.set(id, pc);
 
@@ -49,8 +50,23 @@ export function useRoom(code) {
       };
       pc.ontrack = (e) =>
         setPeers((p) => (p[id] ? { ...p, [id]: { ...p[id], stream: e.streams[0] } } : p));
+      pc.onconnectionstatechange = () => {
+        const s = pc.connectionState;
+        const connection =
+          s === 'connected' ? 'connected' : s === 'failed' ? 'failed' : s === 'disconnected' ? 'disconnected' : 'connecting';
+        setPeers((p) => (p[id] ? { ...p, [id]: { ...p[id], connection } } : p));
+      };
 
-      setPeers((p) => ({ ...p, [id]: { name, stream: null } }));
+      setPeers((p) => ({
+        ...p,
+        [id]: {
+          name: info.name,
+          micOn: info.micOn !== false,
+          camOn: info.camOn !== false,
+          connection: 'connecting',
+          stream: null,
+        },
+      }));
 
       if (initiator) {
         pc.createOffer()
@@ -90,14 +106,17 @@ export function useRoom(code) {
       queues.set(from, prev.then(() => handleSignal(from, data)).catch(console.error));
     };
 
-    const onPeerJoined = ({ id, name }) => createPeer(id, name, false);
+    const onPeerJoined = (peer) => createPeer(peer.id, peer, false);
     const onPeerLeft = ({ id }) => removePeer(id);
+    const onPeerMedia = ({ id, micOn: m, camOn: c }) =>
+      setPeers((p) => (p[id] ? { ...p, [id]: { ...p[id], micOn: m, camOn: c } } : p));
     const onDisconnect = () => fail('The connection to the server was lost. Refresh to rejoin.');
     const onConnectError = (e) =>
       fail(e.message === 'unauthorized' ? 'Your session expired. Please log in again.' : 'Could not reach the server.');
 
     socket.on('room:peer-joined', onPeerJoined);
     socket.on('room:peer-left', onPeerLeft);
+    socket.on('room:peer-media', onPeerMedia);
     socket.on('signal', onSignal);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
@@ -113,18 +132,21 @@ export function useRoom(code) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
+      const hasMic = stream.getAudioTracks().length > 0;
+      const hasCam = stream.getVideoTracks().length > 0;
       localRef.current = stream;
       setLocalStream(stream);
-      setCamOn(stream.getVideoTracks().length > 0);
+      setMicOn(hasMic);
+      setCamOn(hasCam);
 
-      socket.timeout(8000).emit('room:join', { code }, (err, res) => {
+      socket.timeout(8000).emit('room:join', { code, micOn: hasMic, camOn: hasCam }, (err, res) => {
         if (cancelled) return;
         if (err) return fail('The server did not respond. Please try again.');
         if (res.error) return fail(res.error);
         setRoomName(res.room.name);
         setStatus('joined');
         // We are the newcomer, so we make the offers.
-        res.peers.forEach((p) => createPeer(p.id, p.name, true));
+        res.peers.forEach((p) => createPeer(p.id, p, true));
       });
     })();
 
@@ -132,6 +154,7 @@ export function useRoom(code) {
       cancelled = true;
       socket.off('room:peer-joined', onPeerJoined);
       socket.off('room:peer-left', onPeerLeft);
+      socket.off('room:peer-media', onPeerMedia);
       socket.off('signal', onSignal);
       socket.off('disconnect', onDisconnect);
       socket.off('connect_error', onConnectError);
@@ -153,6 +176,7 @@ export function useRoom(code) {
     if (!track) return;
     track.enabled = !track.enabled;
     setMicOn(track.enabled);
+    connectSocket().emit('room:media', { micOn: track.enabled });
   }, []);
 
   const toggleCam = useCallback(() => {
@@ -160,6 +184,7 @@ export function useRoom(code) {
     if (!track) return;
     track.enabled = !track.enabled;
     setCamOn(track.enabled);
+    connectSocket().emit('room:media', { camOn: track.enabled });
   }, []);
 
   return { status, error, roomName, localStream, peers, micOn, camOn, toggleMic, toggleCam };

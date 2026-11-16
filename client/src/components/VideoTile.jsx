@@ -1,8 +1,25 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { MicOff } from 'lucide-react';
+import { useSpeaking } from '../hooks/useSpeaking';
 
-export default function VideoTile({ stream, name, muted = false, mirrored = false, camOff = false }) {
+const LABELS = {
+  connecting: 'Connecting…',
+  disconnected: 'Reconnecting…',
+  failed: 'Connection failed',
+};
+
+export default function VideoTile({
+  stream,
+  name,
+  muted = false,
+  mirrored = false,
+  camOff = false,
+  micOn = true,
+  connection = 'connected',
+}) {
   const videoRef = useRef(null);
+  const speaking = useSpeaking(stream, micOn);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream || null;
@@ -18,7 +35,9 @@ export default function VideoTile({ stream, name, muted = false, mirrored = fals
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-      className="relative aspect-video overflow-hidden rounded-2xl border border-line bg-panel"
+      className={`relative aspect-video overflow-hidden rounded-2xl border bg-panel transition-shadow duration-200 ${
+        speaking ? 'border-accent ring-2 ring-accent' : 'border-line'
+      }`}
     >
       <video
         ref={videoRef}
@@ -34,8 +53,20 @@ export default function VideoTile({ stream, name, muted = false, mirrored = fals
           </div>
         </div>
       )}
-      <div className="absolute bottom-2 left-2 max-w-[80%] truncate rounded-lg bg-ink/70 px-2.5 py-1 text-sm backdrop-blur">
-        {name}
+
+      {connection !== 'connected' && (
+        <div
+          className={`absolute right-2 top-2 rounded-lg bg-ink/70 px-2.5 py-1 text-xs backdrop-blur ${
+            connection === 'failed' ? 'text-danger' : 'text-muted'
+          }`}
+        >
+          {LABELS[connection]}
+        </div>
+      )}
+
+      <div className="absolute bottom-2 left-2 flex max-w-[85%] items-center gap-1.5 rounded-lg bg-ink/70 px-2.5 py-1 text-sm backdrop-blur">
+        {!micOn && <MicOff size={14} className="shrink-0 text-danger" aria-label="Muted" />}
+        <span className="truncate">{name}</span>
       </div>
     </motion.div>
   );

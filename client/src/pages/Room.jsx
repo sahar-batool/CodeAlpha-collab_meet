@@ -53,7 +53,7 @@ export default function Room() {
       <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
         <div className="min-w-0">
           <h1 className="truncate font-display font-semibold">{roomName || 'Joining…'}</h1>
-          <p className="text-sm text-muted">{code}</p>
+                    <p className="text-sm text-muted">{code} · {peerList.length + 1} in call</p>
         </div>
         <Button variant="ghost" onClick={copyLink} className="flex items-center gap-2 text-sm">
           {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -64,9 +64,17 @@ export default function Room() {
       <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-4">
         <div className={`grid w-full gap-4 ${gridFor(peerList.length + 1)}`}>
           <AnimatePresence>
-            <VideoTile key="me" stream={localStream} name={`${user.name} (You)`} muted mirrored camOff={!camOn} />
+           
+              <VideoTile key="me" stream={localStream} name={`${user.name} (You)`} muted mirrored camOff={!camOn} micOn={micOn} />
             {peerList.map(([id, p]) => (
-              <VideoTile key={id} stream={p.stream} name={p.name} />
+              <VideoTile
+                key={id}
+                stream={p.stream}
+                name={p.name}
+                camOff={!p.camOn}
+                micOn={p.micOn}
+                connection={p.connection}
+              />
             ))}
           </AnimatePresence>
         </div>

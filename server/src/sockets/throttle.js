@@ -5,6 +5,7 @@ const RULES = {
   'chat:message': { max: 5, windowMs: 3000 }, 
   'whiteboard:draw': { max: 120, windowMs: 1000 }, 
   'room:join': { max: 5, windowMs: 5000 },
+  'room:media': { max: 10, windowMs: 2000 },
 };
 
 const MAX_STRIKES = 20; // disconnect clients that keep flooding

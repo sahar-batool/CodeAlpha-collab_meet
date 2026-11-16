@@ -44,19 +44,39 @@ export function registerRoomHandlers(io, socket) {
       }
       if (members.size >= MAX_PARTICIPANTS) return reply({ error: 'This room is full' });
 
-      const peers = [...members.values()].map(({ id, name }) => ({ id, name }));
-      members.set(socket.id, { id: socket.id, userId: socket.user.id, name: socket.user.name });
+      const mic = payload?.micOn !== false;
+      const cam = payload?.camOn !== false;
+      const peers = [...members.values()].map(({ id, name, micOn, camOn }) => ({ id, name, micOn, camOn }));
+      members.set(socket.id, {
+        id: socket.id,
+        userId: socket.user.id,
+        name: socket.user.name,
+        micOn: mic,
+        camOn: cam,
+      });
       socket.join(code);
       socket.data.roomCode = code;
 
-      socket.to(code).emit('room:peer-joined', { id: socket.id, name: socket.user.name });
+      socket.to(code).emit('room:peer-joined', { id: socket.id, name: socket.user.name, micOn: mic, camOn: cam });
       reply({ ok: true, room: { code, name: room.name }, selfId: socket.id, peers });
     } catch (err) {
       console.error(err);
       reply({ error: 'Could not join the room' });
     }
   });
-
+  // Tells the room when someone mutes or turns their camera on or off.
+  socket.on('room:media', (payload) => {
+    const code = socket.data.roomCode;
+    const member = code && rooms.get(code)?.get(socket.id);
+    if (!member || typeof payload !== 'object' || payload === null) return;
+    if (typeof payload.micOn === 'boolean') member.micOn = payload.micOn;
+    if (typeof payload.camOn === 'boolean') member.camOn = payload.camOn;
+    socket.to(code).emit('room:peer-media', {
+      id: socket.id,
+      micOn: member.micOn,
+      camOn: member.camOn,
+    });
+  });
   // Relays WebRTC offers, answers and ICE candidates to one specific peer.
   socket.on('signal', (payload) => {
     const code = socket.data.roomCode;
