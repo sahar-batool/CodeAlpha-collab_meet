@@ -22,7 +22,8 @@
 }
 
 @layer base {
-  html, body, #root { height: 100%; }
+    html, body { height: 100%; }
+  #root { height: 100vh; height: 100dvh; }
   body { @apply bg-ink text-fg font-sans antialiased; }
   :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 }

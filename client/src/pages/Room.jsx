@@ -110,6 +110,11 @@ export default function Room() {
           {copied ? 'Copied' : 'Copy invite link'}
         </Button>
       </header>
+            {status === 'reconnecting' && (
+        <div role="status" className="border-b border-line bg-raised px-5 py-2 text-center text-sm text-muted">
+          Connection lost. Reconnecting…
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">

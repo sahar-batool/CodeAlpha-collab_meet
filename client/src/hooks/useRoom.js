@@ -12,7 +12,8 @@ async function getMedia() {
 }
 
 export function useRoom(code) {
-  const [status, setStatus] = useState('joining'); // joining | joined | error
+  const [status, setStatus] = useState('joining'); // joining | joined | reconnecting | error
+  const [attempt, setAttempt] = useState(0); // bumped after a reconnect to rejoin from scratch
   const [error, setError] = useState('');
   const [roomName, setRoomName] = useState('');
   const [localStream, setLocalStream] = useState(null);
@@ -120,8 +121,11 @@ export function useRoom(code) {
 
   useEffect(() => {
     let cancelled = false;
+    let hasJoined = false; // joined during THIS run of the effect
+    let wasDisconnected = false; // lets us tell a reconnect from the very first connect
     const socket = connectSocket();
     const pcs = pcsRef.current;
+    const restarts = new Map(); // socketId -> how many ICE restarts we tried
 
     const fail = (message) => {
       if (cancelled) return;
@@ -167,6 +171,16 @@ export function useRoom(code) {
         const connection =
           s === 'connected' ? 'connected' : s === 'failed' ? 'failed' : s === 'disconnected' ? 'disconnected' : 'connecting';
         setPeers((p) => (p[id] ? { ...p, [id]: { ...p[id], connection } } : p));
+
+        if (s === 'connected') restarts.delete(id);
+
+        // Self-repair: a failed link gets up to 3 ICE restarts. Only one side
+        // (the one that made the first offer) does it, so the two never collide.
+        if (s === 'failed' && !politeRef.current.has(id) && (restarts.get(id) || 0) < 3) {
+          restarts.set(id, (restarts.get(id) || 0) + 1);
+          pc.restartIce?.();
+          enqueue(id, () => negotiate(id));
+        }
       };
 
       setPeers((p) => ({
@@ -197,6 +211,7 @@ export function useRoom(code) {
       pendingRef.current.delete(id);
       politeRef.current.delete(id);
       sendersRef.current.delete(id);
+      restarts.delete(id);
       setPeers((p) => {
         const { [id]: _gone, ...rest } = p;
         return rest;
@@ -245,9 +260,28 @@ export function useRoom(code) {
       );
     const onChat = (m) => setMessages((list) => [...list, m]);
     const onFile = (f) => setFiles((list) => [f, ...list.filter((x) => x.id !== f.id)]);
-    const onDisconnect = () => fail('The connection to the server was lost. Refresh to rejoin.');
-    const onConnectError = (e) =>
-      fail(e.message === 'unauthorized' ? 'Your session expired. Please log in again.' : 'Could not reach the server.');
+
+    const onDisconnect = (reason) => {
+      if (reason === 'io client disconnect') return; // we closed it ourselves (logout)
+      if (reason === 'io server disconnect') {
+        return fail('You were disconnected by the server. Refresh to rejoin.');
+      }
+      // Network drop: the browser keeps retrying by itself. Just tell the person.
+      wasDisconnected = true;
+      setStatus((s) => (s === 'error' ? s : 'reconnecting'));
+    };
+    const onConnect = () => {
+      // Back online. The server forgot us, so rejoin from scratch.
+      if (wasDisconnected && !cancelled) {
+        wasDisconnected = false;
+        setAttempt((n) => n + 1);
+      }
+    };
+    const onConnectError = (e) => {
+      if (e.message === 'unauthorized') return fail('Your session expired. Please log in again.');
+      // socket.active is true while the browser is still going to retry.
+      if (!socket.active || !hasJoined) fail('Could not reach the server.');
+    };
 
     socket.on('room:peer-joined', onPeerJoined);
     socket.on('room:peer-left', onPeerLeft);
@@ -257,6 +291,7 @@ export function useRoom(code) {
     socket.on('file:shared', onFile);
     socket.on('signal', onSignal);
     socket.on('disconnect', onDisconnect);
+    socket.on('connect', onConnect);
     socket.on('connect_error', onConnectError);
 
     (async () => {
@@ -281,6 +316,7 @@ export function useRoom(code) {
         if (cancelled) return;
         if (err) return fail('The server did not respond. Please try again.');
         if (res.error) return fail(res.error);
+        hasJoined = true;
         setRoomName(res.room.name);
         setStatus('joined');
         setSelfId(res.selfId);
@@ -301,6 +337,7 @@ export function useRoom(code) {
       socket.off('file:shared', onFile);
       socket.off('signal', onSignal);
       socket.off('disconnect', onDisconnect);
+      socket.off('connect', onConnect);
       socket.off('connect_error', onConnectError);
       socket.emit('room:leave');
       pcs.forEach((pc) => pc.close());
@@ -309,6 +346,7 @@ export function useRoom(code) {
       pendingRef.current.clear();
       politeRef.current.clear();
       sendersRef.current.clear();
+      restarts.clear();
       screenRef.current?.getTracks().forEach((t) => {
         t.onended = null;
         t.stop();
@@ -325,7 +363,7 @@ export function useRoom(code) {
       setStatus('joining');
       setError('');
     };
-  }, [code, enqueue, negotiate, addScreenTracks]);
+  }, [code, attempt, enqueue, negotiate, addScreenTracks]);
 
   const toggleMic = useCallback(() => {
     const track = localRef.current?.getAudioTracks()[0];
