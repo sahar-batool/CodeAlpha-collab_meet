@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { verifyToken } from '../utils/token.js';
 import { applySocketRateLimit } from './throttle.js';
 import { registerRoomHandlers } from './rooms.js';
+import { registerWhiteboardHandlers } from './whiteboard.js';
 
 export function initSockets(httpServer) {
   const io = new Server(httpServer, {
@@ -28,14 +29,14 @@ export function initSockets(httpServer) {
 
   io.on('connection', (socket) => {
     applySocketRateLimit(socket);
-    registerRoomHandlers(io, socket);
 
     // Simple round-trip check used to test the connection from the client.
     socket.on('ping:check', (ack) => {
       if (typeof ack === 'function') ack({ ok: true, user: socket.user });
     });
 
-    // Room, signaling, chat and whiteboard events are added in later phases.
+    registerRoomHandlers(io, socket);
+    registerWhiteboardHandlers(io, socket);
   });
 
   return io;

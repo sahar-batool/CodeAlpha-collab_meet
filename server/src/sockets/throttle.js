@@ -1,11 +1,16 @@
-
+// Per-socket rate limiting. Add a rule here whenever a new event is introduced.
+// Each rule: max events allowed per windowMs.
 const RULES = {
   default: { max: 30, windowMs: 1000 },
-  signal: { max: 60, windowMs: 1000 }, 
-  'chat:message': { max: 5, windowMs: 3000 }, 
-  'whiteboard:draw': { max: 120, windowMs: 1000 }, 
+  signal: { max: 60, windowMs: 1000 }, // WebRTC offers/answers/ICE
   'room:join': { max: 5, windowMs: 5000 },
   'room:media': { max: 10, windowMs: 2000 },
+  'room:screen-start': { max: 3, windowMs: 5000 },
+  'chat:message': { max: 5, windowMs: 3000 },
+  'whiteboard:draw': { max: 120, windowMs: 1000 },
+  'whiteboard:sync': { max: 5, windowMs: 5000 },
+  'whiteboard:undo': { max: 10, windowMs: 2000 },
+  'whiteboard:clear': { max: 2, windowMs: 5000 },
 };
 
 const MAX_STRIKES = 20; // disconnect clients that keep flooding

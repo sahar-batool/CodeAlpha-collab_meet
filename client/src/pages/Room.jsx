@@ -5,6 +5,8 @@ import { Copy, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRoom } from '../hooks/useRoom';
 import VideoTile from '../components/VideoTile';
+import ScreenStage from '../components/ScreenStage';
+import Whiteboard from '../components/Whiteboard';
 import SidePanel from '../components/SidePanel';
 import Controls from '../components/Controls';
 import Button from '../components/Button';
@@ -27,6 +29,7 @@ export default function Room() {
   } = useRoom(code);
   const [copied, setCopied] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const lastCount = useRef(null);
 
@@ -52,7 +55,8 @@ export default function Room() {
   const sharing = !!screenStream;
   const peerList = Object.entries(peers);
   const remoteSharer = peerList.find(([, p]) => p.screenId);
-  const stage = sharing || !!remoteSharer;
+  const screenActive = sharing || !!remoteSharer;
+  const focus = boardOpen || screenActive; // a big main area with the cameras in a strip
 
   const leave = () => navigate('/');
 
@@ -109,15 +113,23 @@ export default function Room() {
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {stage ? (
+          {focus ? (
             <main className="flex min-h-0 flex-1 flex-col gap-4 p-4 lg:flex-row">
-              <section className="min-h-0 flex-1">
-                <ScreenStage
-                  isLocal={sharing}
-                  stream={remoteSharer?.[1].screenStream}
-                  name={remoteSharer?.[1].name}
-                  onStop={stopShare}
-                />
+              <section className="min-h-0 min-w-0 flex-1">
+                {boardOpen ? (
+                  <Whiteboard
+                    onClose={() => setBoardOpen(false)}
+                    screenShareActive={screenActive}
+                    onViewScreen={() => setBoardOpen(false)}
+                  />
+                ) : (
+                  <ScreenStage
+                    isLocal={sharing}
+                    stream={remoteSharer?.[1].screenStream}
+                    name={remoteSharer?.[1].name}
+                    onStop={stopShare}
+                  />
+                )}
               </section>
               <div className="grid shrink-0 grid-cols-3 gap-3 lg:w-60 lg:grid-cols-1 lg:content-start lg:overflow-y-auto">
                 {tiles}
@@ -161,10 +173,12 @@ export default function Room() {
         canShare={canShare}
         panelOpen={panelOpen}
         unread={unread}
+        boardOpen={boardOpen}
         onToggleMic={toggleMic}
         onToggleCam={toggleCam}
         onToggleShare={sharing ? stopShare : startShare}
         onTogglePanel={togglePanel}
+        onToggleBoard={() => setBoardOpen((open) => !open)}
         onLeave={leave}
       />
     </div>

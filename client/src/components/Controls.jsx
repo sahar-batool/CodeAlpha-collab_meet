@@ -1,5 +1,5 @@
 import {
-  Mic, MicOff, Video, VideoOff, PhoneOff, ScreenShare, ScreenShareOff, MessageSquare,
+  Mic, MicOff, Video, VideoOff, PhoneOff, ScreenShare, ScreenShareOff, MessageSquare, PenTool,
 } from 'lucide-react';
 
 function RoundButton({ label, active = true, danger = false, badge = 0, onClick, children }) {
@@ -27,11 +27,11 @@ function RoundButton({ label, active = true, danger = false, badge = 0, onClick,
 }
 
 export default function Controls({
-  micOn, camOn, sharing, canShare, panelOpen, unread,
-  onToggleMic, onToggleCam, onToggleShare, onTogglePanel, onLeave,
+  micOn, camOn, sharing, canShare, panelOpen, unread, boardOpen,
+  onToggleMic, onToggleCam, onToggleShare, onTogglePanel, onToggleBoard, onLeave,
 }) {
   return (
-    <footer className="flex justify-center gap-3 border-t border-line p-4">
+    <footer className="flex flex-wrap justify-center gap-3 border-t border-line p-4">
       <RoundButton label={micOn ? 'Mute microphone' : 'Unmute microphone'} active={micOn} onClick={onToggleMic}>
         {micOn ? <Mic size={20} /> : <MicOff size={20} />}
       </RoundButton>
@@ -43,6 +43,9 @@ export default function Controls({
           {sharing ? <ScreenShareOff size={20} /> : <ScreenShare size={20} />}
         </RoundButton>
       )}
+      <RoundButton label={boardOpen ? 'Close whiteboard' : 'Open whiteboard'} active={!boardOpen} onClick={onToggleBoard}>
+        <PenTool size={20} />
+      </RoundButton>
       <RoundButton label={panelOpen ? 'Close chat and files' : 'Open chat and files'} active={!panelOpen} badge={unread} onClick={onTogglePanel}>
         <MessageSquare size={20} />
       </RoundButton>
