@@ -4,11 +4,13 @@ import { AnimatePresence } from 'framer-motion';
 import { Copy, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useRoom } from '../hooks/useRoom';
+import PreJoin from '../components/PreJoin';
 import VideoTile from '../components/VideoTile';
 import ScreenStage from '../components/ScreenStage';
 import Whiteboard from '../components/Whiteboard';
 import SidePanel from '../components/SidePanel';
 import Controls from '../components/Controls';
+import Toasts from '../components/Toasts';
 import Button from '../components/Button';
 
 const gridFor = (count) =>
@@ -18,20 +20,28 @@ const gridFor = (count) =>
       ? 'max-w-5xl grid-cols-1 sm:grid-cols-2'
       : 'max-w-6xl grid-cols-2 lg:grid-cols-3';
 
-export default function Room() {
-  const { code } = useParams();
+function Call({ code, initial }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
     status, error, roomName, localStream, peers, micOn, camOn, toggleMic, toggleCam,
     screenStream, shareError, startShare, stopShare,
     selfId, messages, files, sendMessage,
-  } = useRoom(code);
+  } = useRoom(code, initial);
   const [copied, setCopied] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [notices, setNotices] = useState([]);
   const lastCount = useRef(null);
+  const knownPeers = useRef(null);
+
+  const canShare = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia;
+  const sharing = !!screenStream;
+  const peerList = Object.entries(peers);
+  const remoteSharer = peerList.find(([, p]) => p.screenId);
+  const screenActive = sharing || !!remoteSharer;
+  const focus = boardOpen || screenActive; // a big main area with the cameras in a strip
 
   // Count new chat messages and files that arrive while the panel is closed.
   useEffect(() => {
@@ -46,17 +56,61 @@ export default function Room() {
     lastCount.current = total;
   }, [status, messages.length, files.length, panelOpen]);
 
+  // "Sam joined" / "Sam left" notices, found by comparing the people list with the last one.
+  useEffect(() => {
+    if (status !== 'joined') {
+      knownPeers.current = null;
+      return;
+    }
+    const now = {};
+    for (const [id, p] of Object.entries(peers)) now[id] = p.name;
+    const before = knownPeers.current;
+    knownPeers.current = now;
+    if (!before) return; // first look after joining: everyone here was already here
+
+    const fresh = [];
+    for (const id of Object.keys(now)) if (!(id in before)) fresh.push({ kind: 'join', text: `${now[id]} joined` });
+    for (const id of Object.keys(before)) if (!(id in now)) fresh.push({ kind: 'leave', text: `${before[id]} left` });
+    if (!fresh.length) return;
+
+    const stamped = fresh.map((n) => ({ ...n, id: crypto.randomUUID?.() ?? String(Math.random()) }));
+    setNotices((list) => [...list, ...stamped].slice(-3));
+    stamped.forEach((n) =>
+      setTimeout(() => setNotices((list) => list.filter((x) => x.id !== n.id)), 4000)
+    );
+  }, [peers, status]);
+
   const togglePanel = () => {
     if (!panelOpen) setUnread(0);
     setPanelOpen(!panelOpen);
   };
 
-  const canShare = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia;
-  const sharing = !!screenStream;
-  const peerList = Object.entries(peers);
-  const remoteSharer = peerList.find(([, p]) => p.screenId);
-  const screenActive = sharing || !!remoteSharer;
-  const focus = boardOpen || screenActive; // a big main area with the cameras in a strip
+  // Keyboard shortcuts: M mic, V camera, S share screen, W whiteboard, C chat.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return; // leave Ctrl+W, Cmd+C etc. alone
+      const el = e.target;
+      const typing =
+        el instanceof HTMLElement &&
+        (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+      if (typing) return; // never steal letters while someone is typing a message
+
+      switch (e.key.toLowerCase()) {
+        case 'm': toggleMic(); break;
+        case 'v': toggleCam(); break;
+        case 's': if (canShare) (sharing ? stopShare : startShare)(); break;
+        case 'w': setBoardOpen((open) => !open); break;
+        case 'c':
+          if (!panelOpen) setUnread(0);
+          setPanelOpen(!panelOpen);
+          break;
+        default: return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleMic, toggleCam, canShare, sharing, startShare, stopShare, panelOpen]);
 
   const leave = () => navigate('/');
 
@@ -110,7 +164,8 @@ export default function Room() {
           {copied ? 'Copied' : 'Copy invite link'}
         </Button>
       </header>
-            {status === 'reconnecting' && (
+
+      {status === 'reconnecting' && (
         <div role="status" className="border-b border-line bg-raised px-5 py-2 text-center text-sm text-muted">
           Connection lost. Reconnecting…
         </div>
@@ -165,6 +220,8 @@ export default function Room() {
         </AnimatePresence>
       </div>
 
+      <Toasts items={notices} />
+
       {shareError && (
         <div role="alert" className="pointer-events-none fixed inset-x-0 bottom-24 flex justify-center px-4">
           <p className="rounded-xl border border-line bg-raised px-4 py-2 text-sm text-danger shadow-lg">{shareError}</p>
@@ -188,4 +245,15 @@ export default function Room() {
       />
     </div>
   );
+}
+
+// The page people land on: a preview screen first, then the call itself.
+export default function Room() {
+  const { code } = useParams();
+  const [prefs, setPrefs] = useState(null);
+
+  if (!prefs || prefs.code !== code) {
+    return <PreJoin key={code} code={code} onJoin={(p) => setPrefs({ ...p, code })} />;
+  }
+  return <Call key={code} code={code} initial={prefs} />;
 }

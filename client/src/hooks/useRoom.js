@@ -11,7 +11,7 @@ async function getMedia() {
   }
 }
 
-export function useRoom(code) {
+export function useRoom(code, initial = {}) {
   const [status, setStatus] = useState('joining'); // joining | joined | reconnecting | error
   const [attempt, setAttempt] = useState(0); // bumped after a reconnect to rejoin from scratch
   const [error, setError] = useState('');
@@ -34,6 +34,7 @@ export function useRoom(code) {
   const pendingRef = useRef(new Set()); // peers that still need a renegotiation
   const politeRef = useRef(new Set()); // peers where we give way in a collision
   const sendersRef = useRef(new Map()); // socketId -> senders carrying our screen
+  const prefsRef = useRef({ ...initial }); // mic/camera choices; kept up to date for rejoins
 
   // Run work for one peer strictly after the previous work for that peer.
   const enqueue = useCallback((id, task) => {
@@ -305,8 +306,17 @@ export function useRoom(code) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
-      const hasMic = stream.getAudioTracks().length > 0;
-      const hasCam = stream.getVideoTracks().length > 0;
+            // Start with the mic and camera exactly as chosen on the preview screen.
+      const wantMic = prefsRef.current.micOn !== false;
+      const wantCam = prefsRef.current.camOn !== false;
+      stream.getAudioTracks().forEach((t) => {
+        t.enabled = wantMic;
+      });
+      stream.getVideoTracks().forEach((t) => {
+        t.enabled = wantCam;
+      });
+      const hasMic = stream.getAudioTracks().length > 0 && wantMic;
+      const hasCam = stream.getVideoTracks().length > 0 && wantCam;
       localRef.current = stream;
       setLocalStream(stream);
       setMicOn(hasMic);
@@ -370,6 +380,7 @@ export function useRoom(code) {
     if (!track) return;
     track.enabled = !track.enabled;
     setMicOn(track.enabled);
+    prefsRef.current.camOn = track.enabled;
     connectSocket().emit('room:media', { micOn: track.enabled });
   }, []);
 

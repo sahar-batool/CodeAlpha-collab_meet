@@ -2,7 +2,7 @@ import {
   Mic, MicOff, Video, VideoOff, PhoneOff, ScreenShare, ScreenShareOff, MessageSquare, PenTool,
 } from 'lucide-react';
 
-function RoundButton({ label, active = true, danger = false, badge = 0, onClick, children }) {
+function RoundButton({ label, keys, active = true, danger = false, badge = 0, onClick, children }) {
   const tone = danger
     ? 'bg-danger text-ink hover:brightness-110'
     : active
@@ -13,7 +13,8 @@ function RoundButton({ label, active = true, danger = false, badge = 0, onClick,
       type="button"
       onClick={onClick}
       aria-label={label}
-      title={label}
+      aria-keyshortcuts={keys}
+      title={keys ? `${label} (${keys})` : label}
       className={`relative grid h-12 w-12 place-items-center rounded-full transition active:scale-90 ${tone}`}
     >
       {children}
@@ -32,21 +33,21 @@ export default function Controls({
 }) {
   return (
     <footer className="flex flex-wrap justify-center gap-3 border-t border-line p-4">
-      <RoundButton label={micOn ? 'Mute microphone' : 'Unmute microphone'} active={micOn} onClick={onToggleMic}>
+      <RoundButton label={micOn ? 'Mute microphone' : 'Unmute microphone'} keys="M" active={micOn} onClick={onToggleMic}>
         {micOn ? <Mic size={20} /> : <MicOff size={20} />}
       </RoundButton>
-      <RoundButton label={camOn ? 'Turn camera off' : 'Turn camera on'} active={camOn} onClick={onToggleCam}>
+      <RoundButton label={camOn ? 'Turn camera off' : 'Turn camera on'} keys="V" active={camOn} onClick={onToggleCam}>
         {camOn ? <Video size={20} /> : <VideoOff size={20} />}
       </RoundButton>
       {canShare && (
-        <RoundButton label={sharing ? 'Stop sharing screen' : 'Share your screen'} active={!sharing} onClick={onToggleShare}>
+        <RoundButton label={sharing ? 'Stop sharing screen' : 'Share your screen'} keys="S" active={!sharing} onClick={onToggleShare}>
           {sharing ? <ScreenShareOff size={20} /> : <ScreenShare size={20} />}
         </RoundButton>
       )}
-      <RoundButton label={boardOpen ? 'Close whiteboard' : 'Open whiteboard'} active={!boardOpen} onClick={onToggleBoard}>
+      <RoundButton label={boardOpen ? 'Close whiteboard' : 'Open whiteboard'} keys="W" active={!boardOpen} onClick={onToggleBoard}>
         <PenTool size={20} />
       </RoundButton>
-      <RoundButton label={panelOpen ? 'Close chat and files' : 'Open chat and files'} active={!panelOpen} badge={unread} onClick={onTogglePanel}>
+      <RoundButton label={panelOpen ? 'Close chat and files' : 'Open chat and files'} keys="C" active={!panelOpen} badge={unread} onClick={onTogglePanel}>
         <MessageSquare size={20} />
       </RoundButton>
       <RoundButton label="Leave meeting" danger onClick={onLeave}>
