@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { connectSocket } from '../lib/socket';
-import { getIceServers } from '../lib/rtc';
+import { getIceServers, loadIceServers } from '../lib/rtc';
 
 async function getMedia() {
   try {
@@ -302,6 +302,7 @@ export function useRoom(code, initial = {}) {
       } catch {
         return fail('Camera and microphone access is needed. Allow it in your browser, then refresh.');
       }
+      await loadIceServers(); 
       if (cancelled) {
         stream.getTracks().forEach((t) => t.stop());
         return;

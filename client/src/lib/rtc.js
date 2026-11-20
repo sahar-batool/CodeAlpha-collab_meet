@@ -1,15 +1,25 @@
-const DEFAULT_ICE_SERVERS = [
+import { api } from '../api/client';
+
+const FALLBACK = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
-// To add a TURN server later, set VITE_ICE_SERVERS to a JSON array in .env.
-export function getIceServers() {
+let servers = FALLBACK;
+let loadedAt = 0;
+
+// Asks the server for TURN credentials (the secret key stays there).
+// Without them, public STUN still connects most networks.
+export async function loadIceServers() {
+  if (Date.now() - loadedAt < 10 * 60 * 1000) return servers;
   try {
-    const raw = import.meta.env.VITE_ICE_SERVERS;
-    if (raw) return JSON.parse(raw);
+    const { iceServers } = await api('/api/ice');
+    if (iceServers?.length) servers = iceServers;
+    loadedAt = Date.now();
   } catch {
-    console.warn('VITE_ICE_SERVERS is not valid JSON, using defaults.');
+    /* keep whatever we already have */
   }
-  return DEFAULT_ICE_SERVERS;
+  return servers;
 }
+
+export const getIceServers = () => servers;
