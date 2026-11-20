@@ -6,7 +6,7 @@ import { connectSocket } from '../lib/socket';
 // Logical canvas size. Points are stored as 0 to 1, so any screen size draws the same picture.
 const W = 1600;
 const H = 900;
-const BG = '#10151b';
+const BG = '#171b34';
 const COLORS = [
   ['White', '#ffffff'],
   ['Mint', '#4fe0c0'],

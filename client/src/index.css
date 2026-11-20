@@ -1,17 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Sora", system-ui, sans-serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
 
-  --color-ink: #0d1014;
-  --color-panel: #151a21;
-  --color-raised: #1d242d;
-  --color-line: #2a323d;
-  --color-fg: #e9edf2;
-  --color-muted: #8a95a4;
-  --color-accent: #4fe0c0;
-  --color-accent-ink: #04201a;
+  /* Night is the default: the call screen and dark surfaces. */
+  --color-ink: #0f1226;
+  --color-panel: #171b34;
+  --color-raised: #20254a;
+  --color-line: #2d3359;
+  --color-fg: #f1f2fb;
+  --color-muted: #9ba2c8;
+  --color-accent: #ffd23f;
+  --color-accent-ink: #12162e;
   --color-danger: #ff6b6b;
 
   --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -21,11 +22,48 @@
   }
 }
 
+/* Paper: the same token names with light values. Wrap a page in .paper to use it. */
+.paper {
+  --color-ink: #f6f7fb;
+  --color-panel: #ffffff;
+  --color-raised: #eceff8;
+  --color-line: #dcdfee;
+  --color-fg: #12162e;
+  --color-muted: #596083;
+  --color-accent: #12162e;
+  --color-accent-ink: #ffd23f;
+  --color-danger: #d92d2d;
+}
+
+/* Night again, for a dark block placed inside a paper page. */
+.night {
+  --color-ink: #0f1226;
+  --color-panel: #171b34;
+  --color-raised: #20254a;
+  --color-line: #2d3359;
+  --color-fg: #f1f2fb;
+  --color-muted: #9ba2c8;
+  --color-accent: #ffd23f;
+  --color-accent-ink: #12162e;
+  --color-danger: #ff6b6b;
+}
+
+.paper,
+.night {
+  background-color: var(--color-ink);
+  color: var(--color-fg);
+}
+
 @layer base {
-    html, body { height: 100%; }
+  html, body { height: 100%; }
   #root { height: 100vh; height: 100dvh; }
   body { @apply bg-ink text-fg font-sans antialiased; }
   :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: #ffd23f; color: #12162e; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
 }
 
 @media (prefers-reduced-motion: reduce) {

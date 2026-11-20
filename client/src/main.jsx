@@ -6,6 +6,10 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import '@fontsource-variable/bricolage-grotesque';
+import '@fontsource/instrument-sans/400.css';
+import '@fontsource/instrument-sans/500.css';
+import '@fontsource/instrument-sans/600.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

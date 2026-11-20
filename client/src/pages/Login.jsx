@@ -8,7 +8,7 @@ import Button from '../components/Button';
 
 export default function Login() {
   const { user, login } = useAuth();
-  const from = useLocation().state?.from?.pathname || '/';
+  const from = useLocation().state?.from?.pathname || '/lobby';
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

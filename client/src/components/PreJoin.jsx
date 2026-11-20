@@ -138,7 +138,7 @@ export default function PreJoin({ code, onJoin }) {
         </div>
 
         <div className="mt-6 flex gap-3">
-          <Button variant="ghost" onClick={() => navigate('/')} className="flex-1">Back</Button>
+          <Button variant="ghost" onClick={() => navigate('/lobby')} className="flex-1">Back</Button>
           {error ? (
             <Button onClick={() => setRetry((n) => n + 1)} className="flex-1">Try again</Button>
           ) : (

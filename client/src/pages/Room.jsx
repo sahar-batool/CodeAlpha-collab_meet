@@ -112,7 +112,7 @@ function Call({ code, initial }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [toggleMic, toggleCam, canShare, sharing, startShare, stopShare, panelOpen]);
 
-  const leave = () => navigate('/');
+  const leave = () => navigate('/lobby');
 
   const copyLink = async () => {
     try {

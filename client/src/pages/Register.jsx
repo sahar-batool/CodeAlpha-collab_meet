@@ -8,7 +8,7 @@ import Button from '../components/Button';
 
 export default function Register() {
   const { user, register } = useAuth();
-  const from = useLocation().state?.from?.pathname || '/';
+  const from = useLocation().state?.from?.pathname || '/lobby';
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');

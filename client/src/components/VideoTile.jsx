@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MicOff } from 'lucide-react';
 import { useSpeaking } from '../hooks/useSpeaking';
+import { colorFor } from '../lib/people';
 
 const LABELS = {
   connecting: 'Connecting…',
@@ -20,6 +21,8 @@ export default function VideoTile({
 }) {
   const videoRef = useRef(null);
   const speaking = useSpeaking(stream, micOn);
+  // Strip the "(You)" suffix so you get the same color on your screen and on everyone else's.
+  const color = colorFor(name.replace(/ \(You\)$/, ''));
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.srcObject = stream || null;
@@ -35,9 +38,8 @@ export default function VideoTile({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 260, damping: 26 }}
-      className={`relative aspect-video overflow-hidden rounded-2xl border bg-panel transition-shadow duration-200 ${
-        speaking ? 'border-accent ring-2 ring-accent' : 'border-line'
-      }`}
+      className="relative aspect-video overflow-hidden rounded-2xl border border-line bg-panel transition-shadow duration-200"
+      style={speaking ? { borderColor: color, boxShadow: `0 0 0 3px ${color}` } : undefined}
     >
       <video
         ref={videoRef}
@@ -48,7 +50,10 @@ export default function VideoTile({
       />
       {!hasVideo && (
         <div className="absolute inset-0 grid place-items-center">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-raised font-display text-2xl">
+          <div
+            className="grid h-16 w-16 place-items-center rounded-full font-display text-2xl font-bold"
+            style={{ backgroundColor: color, color: '#12162e' }}
+          >
             {initials}
           </div>
         </div>
