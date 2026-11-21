@@ -98,7 +98,7 @@ Use headphones when testing with two windows, or you will get feedback.
 | `JWT_EXPIRES_IN` | no | Defaults to `7d` |
 | `UPLOAD_DIR` | no | Where uploaded files are stored. Defaults to `uploads` |
 | `FILE_RETENTION_DAYS` | no | Files are deleted after this many days. Defaults to 7 |
-| `TURN_KEY_ID`, `TURN_KEY_API_TOKEN` | no | Cloudflare Realtime TURN, for calls across strict networks |
+| `TURN_KEY_ID`, `TURN_KEY_API_TOKEN` | no | Optional Cloudflare Realtime TURN relay (needs a card on the Cloudflare account). Not used in the default deployment |
 
 **Client (`client/.env`)**
 
@@ -113,7 +113,7 @@ Vite bakes `VITE_` variables into the build, so never put secrets there, and reb
 1. A logged-in user creates a room. The server stores it under a random code like `k3f-9xqm-w2p`.
 2. Everyone who opens the link joins the room over a Socket.IO connection that is checked with the user's JWT.
 3. The newest person sends a WebRTC offer to each person already inside. The server only relays offers, answers and network candidates.
-4. Audio and video then flow directly between browsers. With TURN configured, the media is relayed for people on strict networks.
+4. Audio and video then flow directly between browsers, using public STUN servers to find a path. No relay server is configured by default, so people on very strict networks may not be able to connect (see Known limitations).
 
 Chat, the whiteboard and the people list live in server memory while a meeting is active.
 
@@ -127,7 +127,7 @@ Chat, the whiteboard and the people list live in server memory while a meeting i
 | POST | `/api/rooms` | create a meeting |
 | POST | `/api/files/:code` | upload a file (members of the meeting only) |
 | GET | `/api/files/:code/:id` | download a file (members only) |
-| GET | `/api/ice` | ICE servers, including short-lived TURN credentials |
+| GET | `/api/ice` | ICE servers. Returns an empty list unless a TURN relay is configured, and the client then uses public STUN |
 | GET | `/health` | health check |
 
 Socket events: `room:join`, `room:leave`, `signal`, `room:media`, `room:screen-start`, `room:screen-stop`, `chat:message`, `whiteboard:sync`, `whiteboard:draw`, `whiteboard:undo`, `whiteboard:clear`.
@@ -165,7 +165,7 @@ The app runs on three free-tier friendly services.
 2. **Railway (server):** deploy this repo with the root directory set to `/server`, add the server variables above, attach a volume at `/data` and set `UPLOAD_DIR=/data/uploads`, set the health check path to `/health`, and keep one instance.
 3. **Vercel (client):** import the repo with the root directory set to `client`, and set `VITE_API_URL` to the Railway address.
 4. Set `CLIENT_URL` on Railway to the Vercel address.
-5. Optional: create a Cloudflare Realtime TURN key and add `TURN_KEY_ID` and `TURN_KEY_API_TOKEN` on Railway.
+5. Optional: add a TURN relay for strict networks using the `TURN_KEY_ID` and `TURN_KEY_API_TOKEN` variables on Railway. Without one, calls use public STUN only.
 
 ## Known limitations
 
@@ -173,3 +173,8 @@ The app runs on three free-tier friendly services.
 - The mesh design is meant for small groups. Larger calls would need an SFU such as mediasoup.
 - Whiteboards and chat are not saved after a meeting ends.
 - Anyone in a meeting can clear the whiteboard.
+- There is no TURN relay in the default deployment. Calls work on most home networks and on the same Wi-Fi, but  can fail when someone is on mobile data or behind a strict network, such as some school, company or hotel Wi-Fi.
+
+## Tested
+
+- Two devices on the same Wi-Fi network (laptop and phone): video, audio, chat, files, whiteboard and screen sharing
