@@ -5,7 +5,8 @@ It runs in the browser, so there is nothing to install.
 
 Built with the MERN stack, WebRTC and Socket.IO.
 
-<!-- Add your live link here: https://your-app.vercel.app -->
+**Live demo:** https://code-alpha-collab-meet.vercel.app/
+**API:** https://codealpha-collabmeet-production.up.railway.app/health
 
 ## Features
 
